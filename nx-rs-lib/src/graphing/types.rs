@@ -64,7 +64,9 @@ impl TaskGraph {
 }
 
 impl Iterator for TaskGraph {
-    type Item = Task;
+    // Some means a task is ready to be run
+    // None means there are tasks remaining but none are ready to be run
+    type Item = Option<Task>;
 
     // Has to be called manually due to returning None even when there are tasks
     // left
@@ -73,6 +75,10 @@ impl Iterator for TaskGraph {
         // Later tasks should not be possible before this task
 
         // loop through all the tasks to find a task that is ready to be run
+        if self.ordered_tasks.len() == 0 {
+            return None;
+        }
+
         for i in 0..self.ordered_tasks.len() {
             let task_id = self.ordered_tasks.get(i)?.clone();
 
@@ -90,10 +96,10 @@ impl Iterator for TaskGraph {
             {
                 // return the task
                 self.ordered_tasks.remove(i);
-                return Some(self.tasks.get(&task_id).unwrap().clone());
+                return Some(Some(self.tasks.get(&task_id).unwrap().clone()));
             }
         }
-        return None;
+        return Some(None);
     }
 }
 
@@ -236,7 +242,7 @@ mod test {
 
             let mut graph = builder.build().unwrap();
 
-            let first = graph.next().unwrap();
+            let first = graph.next().unwrap().unwrap();
             assert!(
                 vec![n_c.clone(), n_d.clone()].contains(&first),
                 "First task should be c or d",
@@ -245,21 +251,41 @@ mod test {
             if first == n_d {
                 // first task is d, so we need to do c first
                 graph.done(&n_d.id);
-                assert_eq!(graph.next(), Some(n_c.clone()), "Next task should be c");
-
-                graph.done(&n_c.id);
+                assert_eq!(
+                    graph.next(),
+                    Some(Some(n_c.clone())),
+                    "Next task should be c"
+                );
             } else {
                 // else first task is c, so we need to do d first
-                assert_eq!(graph.next(), Some(n_d.clone()), "Next task should be d");
+                assert_eq!(
+                    graph.next(),
+                    Some(Some(n_d.clone())),
+                    "Next task should be d"
+                );
 
-                graph.done(&n_c.id);
                 graph.done(&n_d.id);
             }
 
-            assert_eq!(graph.next(), Some(n_b.clone()), "Next task should be b");
+            assert_eq!(
+                graph.next(),
+                Some(None),
+                "There are tasks remaining, but none are ready"
+            );
+
+            graph.done(&n_c.id);
+            assert_eq!(
+                graph.next(),
+                Some(Some(n_b.clone())),
+                "Next task should be b"
+            );
             graph.done(&n_b.id);
 
-            assert_eq!(graph.next(), Some(n_a.clone()), "Final task should be a");
+            assert_eq!(
+                graph.next(),
+                Some(Some(n_a.clone())),
+                "Final task should be a"
+            );
             graph.done(&n_a.id);
 
             assert_eq!(
