@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs::read_to_string, path::Path};
 
@@ -21,10 +21,13 @@ pub enum ValidateProjectsError {
     /// The project could not be deserialized
     /// # Arguments
     /// * `String` - The name of the project
-    ProjectSerialization(String),
+    /// * `Error` - The error that occurred
+    ProjectSerialization(String, Error),
 
     /// The workspace could not be deserialized
-    WorkspaceSerialization,
+    /// # Arguments
+    /// * `Error` - The error that occurred
+    WorkspaceSerialization(Error),
 }
 
 // NOTE: should I use the same one from the algorithms module, or create a new
@@ -130,7 +133,9 @@ impl Workspace {
         if let Ok(w) = ws_res {
             ws = w;
         } else {
-            return vec![ValidateProjectsError::WorkspaceSerialization];
+            return vec![ValidateProjectsError::WorkspaceSerialization(
+                ws_res.err().unwrap(),
+            )];
         }
 
         let mut errors: Vec<ValidateProjectsError> = vec![];
@@ -142,7 +147,10 @@ impl Workspace {
             if let Ok(p) = proj_res {
                 proj = p;
             } else {
-                errors.push(ValidateProjectsError::ProjectSerialization(name.clone()));
+                errors.push(ValidateProjectsError::ProjectSerialization(
+                    name.clone(),
+                    proj_res.err().unwrap(),
+                ));
                 continue;
             }
 
@@ -154,6 +162,7 @@ impl Workspace {
             }
 
             // check tags
+            //// check affects tags
             let mut unknown_tags: Vec<String> = vec![];
             for tag in proj.affects_tags.clone() {
                 if !ws.tags.contains(&tag) {
@@ -161,6 +170,7 @@ impl Workspace {
                 }
             }
 
+            //// check affected by tags
             for tag in proj.affected_by_tags.clone() {
                 if !ws.tags.contains(&tag) {
                     unknown_tags.push(tag);
