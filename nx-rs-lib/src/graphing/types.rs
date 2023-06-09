@@ -75,7 +75,7 @@ impl Iterator for TaskGraph {
         // Later tasks should not be possible before this task
 
         // loop through all the tasks to find a task that is ready to be run
-        if self.ordered_tasks.len() == 0 {
+        if self.ordered_tasks.is_empty() {
             return None;
         }
 
@@ -103,7 +103,7 @@ impl Iterator for TaskGraph {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct TaskGraphBuilder {
     tasks: HashMap<TaskID, Task>,
     edges: HashMap<TaskID, Vec<TaskID>>,
@@ -111,10 +111,7 @@ pub struct TaskGraphBuilder {
 
 impl TaskGraphBuilder {
     pub fn new() -> Self {
-        Self {
-            tasks: HashMap::new(),
-            edges: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn add_task(&mut self, task: Task) {
@@ -141,7 +138,7 @@ impl TaskGraphBuilder {
         let edges = self.edges.clone();
         let start_edges = edges
             .iter()
-            .filter(|(_, ts)| ts.len() == 0)
+            .filter(|(_, ts)| ts.is_empty())
             .map(|(t, _)| t.clone())
             .clone()
             .collect::<Vec<TaskID>>();
